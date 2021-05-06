@@ -46,6 +46,10 @@ public class FiniteStateMachine {
 		}
 	}
 
+	public int getStateCount() {
+		return this.states.size();
+	}
+
 	public Set<Transition> getTransitionsStartingAt(State state) {
 		Set<Transition> stateTransitions = new HashSet<>();
 		for (Transition t : this.transitions) {
@@ -89,7 +93,7 @@ public class FiniteStateMachine {
 	public boolean isDeterministic() {
 		for (State state : this.states) {
 			for (Symbol symbol : this.alphabet) {
-				if (this.getNextStates(state, symbol).size() > 1) {
+				if (this.getEpsilonClosure(this.getNextStates(state, symbol)).size() > 1) {
 					return false;
 				}
 			}

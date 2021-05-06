@@ -34,6 +34,10 @@ public class State implements Comparable<State> {
 		return this.name.compareTo(o.name);
 	}
 
+	public static State of(String name) {
+		return new State(name);
+	}
+
 	public static State of(Set<State> states) {
 		if (states.isEmpty()) throw new IllegalArgumentException("Cannot construct state of empty states.");
 		if (states.size() == 1) return states.stream().findAny().get();
