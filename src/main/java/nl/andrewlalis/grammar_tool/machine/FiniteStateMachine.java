@@ -2,10 +2,7 @@ package nl.andrewlalis.grammar_tool.machine;
 
 import nl.andrewlalis.grammar_tool.grammar.Symbol;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -47,6 +44,90 @@ public class FiniteStateMachine {
 				throw new IllegalArgumentException("Accepting symbol of transition is not in the alphabet: " + t);
 			}
 		}
+	}
+
+	public Set<Transition> getTransitionsStartingAt(State state) {
+		Set<Transition> stateTransitions = new HashSet<>();
+		for (Transition t : this.transitions) {
+			if (t.getStartState().equals(state)) {
+				stateTransitions.add(t);
+			}
+		}
+		return stateTransitions;
+	}
+
+	public Set<State> getNextStates(State currentState, Symbol acceptingSymbol) {
+		Set<State> nextStates = new HashSet<>();
+		for (Transition t : this.transitions) {
+			if (t.getStartState().equals(currentState) && t.getAcceptingSymbol().equals(acceptingSymbol)) {
+				nextStates.add(t.getEndState());
+			}
+		}
+		return nextStates;
+	}
+
+	public Set<State> getNextStates(Set<State> states, Symbol acceptingSymbol) {
+		Set<State> nextStates = new HashSet<>();
+		for (State state : states) {
+			nextStates.addAll(this.getNextStates(state, acceptingSymbol));
+		}
+		return nextStates;
+	}
+
+	public Set<State> getEpsilonClosure(State currentState) {
+		Set<State> nextStates = this.getNextStates(currentState, Symbol.EMPTY);
+		nextStates.add(currentState);
+		return nextStates;
+	}
+
+	public Set<State> getEpsilonClosure(Set<State> states) {
+		Set<State> nextStates = this.getNextStates(states, Symbol.EMPTY);
+		nextStates.addAll(states);
+		return nextStates;
+	}
+
+	public boolean isDeterministic() {
+		for (State state : this.states) {
+			for (Symbol symbol : this.alphabet) {
+				if (this.getNextStates(state, symbol).size() > 1) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	public FiniteStateMachine toDeterministic() {
+		Set<State> finalStates = new HashSet<>();
+		Set<Transition> transitions = new HashSet<>();
+		Set<State> startClosure = this.getEpsilonClosure(this.startState);
+		State startState = State.of(startClosure);
+		Deque<Set<State>> stateQueue = new LinkedList<>();
+		Set<Set<State>> visitedClosures = new HashSet<>();
+		stateQueue.add(startClosure);
+		while (!stateQueue.isEmpty()) {
+			Set<State> currentClosure = stateQueue.pop();
+			visitedClosures.add(currentClosure);
+			State combinedState = State.of(currentClosure);
+			for (State state : currentClosure) {
+				if (this.finalStates.contains(state)) {
+					finalStates.add(combinedState);
+				}
+			}
+			for (Symbol symbol : this.alphabet) {
+				if (symbol.isEmpty()) continue;
+				Set<State> nextStates = this.getNextStates(currentClosure, symbol);
+				Set<State> nextStateClosure = this.getEpsilonClosure(nextStates);
+				if (nextStateClosure.isEmpty()) continue;
+				State combinedNextState = State.of(nextStateClosure);
+//				System.out.println(combinedState + " : " + "\"" + symbol + "\" -> " + combinedNextState);
+				transitions.add(new Transition(combinedState, symbol, combinedNextState));
+				if (!visitedClosures.contains(nextStateClosure)) {
+					stateQueue.add(nextStateClosure);
+				}
+			}
+		}
+		return FiniteStateMachine.fromTransitions(startState, transitions, finalStates);
 	}
 
 	@Override
@@ -91,37 +172,6 @@ public class FiniteStateMachine {
 			sb.append("\n");
 		}
 		return sb.toString();
-	}
-
-	public Set<Transition> getTransitionsStartingAt(State state) {
-		Set<Transition> stateTransitions = new HashSet<>();
-		for (Transition t : this.transitions) {
-			if (t.getStartState().equals(state)) {
-				stateTransitions.add(t);
-			}
-		}
-		return stateTransitions;
-	}
-
-	public Set<State> getNextStates(State currentState, Symbol acceptingSymbol) {
-		Set<State> nextStates = new HashSet<>();
-		for (Transition t : this.transitions) {
-			if (t.getStartState().equals(currentState) && t.getAcceptingSymbol().equals(acceptingSymbol)) {
-				nextStates.add(t.getEndState());
-			}
-		}
-		return nextStates;
-	}
-
-	public boolean isDeterministic() {
-		for (State state : this.states) {
-			for (Symbol symbol : this.alphabet) {
-				if (this.getNextStates(state, symbol).size() > 1) {
-					return false;
-				}
-			}
-		}
-		return true;
 	}
 
 	public static FiniteStateMachine fromTransitions(State startState, Set<Transition> transitions, Set<State> finalStates) {

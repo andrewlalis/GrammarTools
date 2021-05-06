@@ -7,6 +7,8 @@ import java.util.Objects;
 import java.util.Set;
 
 public class Symbol implements Comparable<Symbol> {
+	public static final Symbol EMPTY = Symbol.of("");
+
 	@Getter
 	private final String identifier;
 

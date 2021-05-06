@@ -1,6 +1,8 @@
 package nl.andrewlalis.grammar_tool.machine;
 
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class State implements Comparable<State> {
 	private final String name;
@@ -30,5 +32,12 @@ public class State implements Comparable<State> {
 	@Override
 	public int compareTo(State o) {
 		return this.name.compareTo(o.name);
+	}
+
+	public static State of(Set<State> states) {
+		if (states.isEmpty()) throw new IllegalArgumentException("Cannot construct state of empty states.");
+		if (states.size() == 1) return states.stream().findAny().get();
+		String name = states.stream().sorted().map(State::toString).collect(Collectors.joining(", "));
+		return new State("{" + name + "}");
 	}
 }

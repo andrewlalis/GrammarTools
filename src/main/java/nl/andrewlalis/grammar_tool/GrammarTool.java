@@ -20,9 +20,13 @@ public class GrammarTool {
 				-> q0 : "" -> q1, "b" -> q2
 				   q1 : "c" -> q1, "a" -> q2,
 				   q2 : "d" -> q2, "d" -> q3,
-				 * q3 : "c" -> q1
+				 * q3 : "c" -> q0
 				""");
 		System.out.println(f1);
 		System.out.println("Deterministic? " + f1.isDeterministic());
+
+		FiniteStateMachine d1 = f1.toDeterministic();
+		System.out.println(d1);
+		System.out.println("Deterministic? " + d1.isDeterministic());
 	}
 }
