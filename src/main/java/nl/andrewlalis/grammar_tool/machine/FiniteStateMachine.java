@@ -2,8 +2,13 @@ package nl.andrewlalis.grammar_tool.machine;
 
 import nl.andrewlalis.grammar_tool.grammar.Symbol;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class FiniteStateMachine {
 	private final Set<Symbol> alphabet;
@@ -13,11 +18,11 @@ public class FiniteStateMachine {
 	private final Set<Transition> transitions;
 
 	public FiniteStateMachine(Set<Symbol> alphabet, Set<State> states, Set<State> finalStates, State startState, Set<Transition> transitions) {
-		this.alphabet = alphabet;
-		this.states = states;
-		this.finalStates = finalStates;
-		this.startState = startState;
-		this.transitions = transitions;
+		this.alphabet = Objects.requireNonNull(alphabet);
+		this.states = Objects.requireNonNull(states);
+		this.finalStates = Objects.requireNonNull(finalStates);
+		this.startState = Objects.requireNonNull(startState);
+		this.transitions = Objects.requireNonNull(transitions);
 		this.ensureValidElements();
 	}
 
@@ -59,5 +64,130 @@ public class FiniteStateMachine {
 	@Override
 	public int hashCode() {
 		return Objects.hash(alphabet, states, finalStates, startState, transitions);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		List<State> sortedStates = this.states.stream().sorted().collect(Collectors.toList());
+		for (State state : sortedStates) {
+			if (this.startState.equals(state)) {
+				sb.append("-> ");
+			} else if (this.finalStates.contains(state)) {
+				sb.append(" * ");
+			} else {
+				sb.append("   ");
+			}
+			sb.append(state);
+			List<Transition> sortedTransitions = this.getTransitionsStartingAt(state).stream().sorted().collect(Collectors.toList());
+			if (!sortedTransitions.isEmpty()) {
+				sb.append(" : ");
+				for (int i = 0; i < sortedTransitions.size(); i++) {
+					Transition t = sortedTransitions.get(i);
+					sb.append('"').append(t.getAcceptingSymbol()).append('"').append(" -> ").append(t.getEndState());
+					if (i < sortedTransitions.size() - 1) sb.append(", ");
+				}
+			}
+			sb.append("\n");
+		}
+		return sb.toString();
+	}
+
+	public Set<Transition> getTransitionsStartingAt(State state) {
+		Set<Transition> stateTransitions = new HashSet<>();
+		for (Transition t : this.transitions) {
+			if (t.getStartState().equals(state)) {
+				stateTransitions.add(t);
+			}
+		}
+		return stateTransitions;
+	}
+
+	public Set<State> getNextStates(State currentState, Symbol acceptingSymbol) {
+		Set<State> nextStates = new HashSet<>();
+		for (Transition t : this.transitions) {
+			if (t.getStartState().equals(currentState) && t.getAcceptingSymbol().equals(acceptingSymbol)) {
+				nextStates.add(t.getEndState());
+			}
+		}
+		return nextStates;
+	}
+
+	public boolean isDeterministic() {
+		for (State state : this.states) {
+			for (Symbol symbol : this.alphabet) {
+				if (this.getNextStates(state, symbol).size() > 1) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	public static FiniteStateMachine fromTransitions(State startState, Set<Transition> transitions, Set<State> finalStates) {
+		Set<Symbol> alphabet = new HashSet<>();
+		Set<State> states = new HashSet<>();
+		for (Transition t : transitions) {
+			states.add(t.getStartState());
+			states.add(t.getEndState());
+			alphabet.add(t.getAcceptingSymbol());
+		}
+		return new FiniteStateMachine(alphabet, states,finalStates, startState, transitions);
+	}
+
+	/**
+	 * Constructs an FSM from a series of strings depicting states and their
+	 * possible transitions. The following format is used:
+	 * <pre><code>
+	 *     -> q0 : "a" -> q1, "" -> q2
+	 *        q1 : "b" -> q2, "c" -> q3
+	 *      * q2 : "c" -> q3
+	 *      * q3
+	 * </code></pre>
+	 * @param fsmString The string containing the FSM specification.
+	 * @return The finite state machine that was created.
+	 */
+	public static FiniteStateMachine fromString(String fsmString) {
+		String[] stateStrings = fsmString.split("\\n+");
+		State startState = null;
+		Set<State> finalStates = new HashSet<>();
+		Set<Transition> transitions = new HashSet<>();
+		for (String stateString : stateStrings) {
+			if (stateString.isBlank()) continue;
+			String[] parts = stateString.split("\\s*:\\s*");
+			String stateDefinition = parts[0].trim();
+			String[] definitionParts = stateDefinition.split("\\s+");
+			String modifier = null;
+			String stateName;
+			if (definitionParts.length > 1) {
+				modifier = definitionParts[0].trim();
+				stateName = definitionParts[1].trim();
+			} else {
+				stateName = definitionParts[0].trim();
+			}
+			State state = new State(stateName);
+			if (modifier != null) {
+				if (modifier.trim().equals("->")) {
+					startState = state;
+				} else if (modifier.trim().equals("*")) {
+					finalStates.add(state);
+				} else {
+					throw new IllegalArgumentException("Invalid state modifier: " + modifier);
+				}
+			}
+			if (parts.length == 1) continue;
+			String[] transitionDefinitions = parts[1].split("\\s*,\\s*");
+			for (String transitionDefinition : transitionDefinitions) {
+				String[] transitionParts = transitionDefinition.split("\\s*->\\s*");
+				if (transitionParts.length != 2) throw new IllegalArgumentException("Invalid transition format: " + transitionDefinition);
+				Pattern p = Pattern.compile("\"([^\"]*)\"");
+				Matcher m = p.matcher(transitionParts[0]);
+				if (!m.find()) throw new IllegalArgumentException("Invalid transition format: " + transitionDefinition);
+				Symbol acceptingSymbol = new Symbol(m.group(1));
+				State endState = new State(transitionParts[1].trim());
+				transitions.add(new Transition(state, acceptingSymbol, endState));
+			}
+		}
+		return fromTransitions(startState, transitions, finalStates);
 	}
 }

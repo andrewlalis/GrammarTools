@@ -2,7 +2,7 @@ package nl.andrewlalis.grammar_tool.machine;
 
 import java.util.Objects;
 
-public class State {
+public class State implements Comparable<State> {
 	private final String name;
 
 	public State(String name) {
@@ -25,5 +25,10 @@ public class State {
 	@Override
 	public String toString() {
 		return this.name;
+	}
+
+	@Override
+	public int compareTo(State o) {
+		return this.name.compareTo(o.name);
 	}
 }

@@ -37,6 +37,10 @@ public class Symbol implements Comparable<Symbol> {
 		return this.identifier.compareTo(o.identifier);
 	}
 
+	public boolean isEmpty() {
+		return this.identifier.isEmpty();
+	}
+
 	public static Symbol of(String identifier) {
 		return new Symbol(identifier);
 	}
